@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新しいタブ</title>
+    <style>
+        :root {
+            --bg-color: #202124;
+            --text-color: #f1f3f4;
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --card-hover: rgba(255, 255, 255, 0.2);
+            --primary-color: #8ab4f8;
+            --border-radius: 12px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-color);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            transition: background-image 0.5s ease;
+        }
+
+        /* 背景画像設定時に文字を見やすくするためのフィルター */
+        .bg-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: -1;
+            display: none; /* JavaScriptで切り替え */
+            backdrop-filter: blur(2px);
+        }
+
+        /* --- ブックマークバー --- */
+        .bookmark-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(32, 33, 36, 0.7);
+            backdrop-filter: blur(10px);
+            display: flex;
+            padding: 10px 20px;
+            box-sizing: border-box;
+            gap: 12px;
+            overflow-x: auto;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            z-index: 100;
+        }
+
+        .bookmark-bar::-webkit-scrollbar {
+            height: 4px;
+        }
+        .bookmark-bar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .bookmark-item {
+            display: flex;
+            align-items: center;
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: var(--card-bg);
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .bookmark-item:hover {
+            background: var(--card-hover);
+        }
+
+        .bookmark-item img {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+
+        .bookmark-item.add-bm {
+            background: transparent;
+            border: 1px dashed rgba(255, 255, 255, 0.3);
+            padding: 5px 12px;
+        }
+
+        .bookmark-item.add-bm:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: #fff;
+        }
+
+        .bm-delete {
+            margin-left: 8px;
+            background: #ff5252;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .bookmark-item:hover .bm-delete {
+            display: inline-flex;
+        }
+
+        /* --- メインコンテナ --- */
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            margin-top: 40px;
+        }
+
+        /* 時計・日付 */
+        .datetime {
+            margin-bottom: 35px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .date {
+            font-size: 1.2rem;
+            color: #ddd;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .clock {
+            font-size: 5.5rem;
+            font-weight: 500;
+            letter-spacing: 2px;
+            line-height: 1;
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
+        }
+
+        .seconds {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-left: 8px;
+            font-weight: 400;
+        }
+
+        /* 検索バー */
+        .search-box {
+            margin: 0 auto 50px auto;
+            position: relative;
+            max-width: 600px;
+            display: flex;
+            align-items: center;
+            background: #ffffff;
+            border-radius: 30px;
+            padding: 0 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: box-shadow 0.2s ease;
+        }
+
+        .search-box:focus-within {
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+        }
+
+        .search-icon {
+            width: 24px;
+            height: 24px;
+            fill: #9aa0a6;
+            margin-right: 12px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 16px 0;
+            font-size: 1.1rem;
+            border: none;
+            background: transparent;
+            outline: none;
+            color: #202124;
+        }
+
+        /* ショートカットエリア */
+        .shortcuts {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .shortcut {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 110px;
+            padding: 15px 10px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s ease;
+            text-decoration: none;
+            color: var(--text-color);
+            position: relative;
+        }
+
+        .shortcut:hover {
+            background: rgba(0, 0, 0, 0.4); /* 背景画像時でも見やすく */
+            transform: translateY(-2px);
+        }
+
+        .shortcut .icon {
+            width: 48px;
+            height: 48px;
+            background-color: var(--card-bg);
+            backdrop-filter: blur(5px);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 1.5rem;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .shortcut .icon img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+        }
+
+        .shortcut .title {
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            text-align: center;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+
+        .sc-delete {
+            position: absolute;
+            top: 5px;
+            right: 15px;
+            background: rgba(40, 40, 40, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            cursor: pointer;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .sc-delete:hover {
+            background: #ff5252;
+        }
+
+        .shortcut:hover .sc-delete {
+            display: flex;
+        }
+
+        /* --- 設定ボタン --- */
+        .settings-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(5px);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .settings-btn:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: rotate(45deg);
+        }
+
+        .settings-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: #fff;
+        }
+
+        /* --- モーダルウィンドウ共通 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #2b2b2b;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: left;
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #555;
+            border-radius: 8px;
+            background: #111;
+            color: white;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        .modal-content input:focus, .modal-content select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: opacity 0.2s;
+        }
+
+        .modal-actions button:hover {
+            opacity: 0.8;
+        }
+
+        .btn-save {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            color: var(--text-color);
+            border: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 背景画像用暗色フィルター -->
+    <div class="bg-overlay" id="bgOverlay"></div>
+
+    <!-- ブックマークバー -->
+    <div class="bookmark-bar" id="bookmarkBar"></div>
+
+    <div class="container">
+        <!-- 時計・日付エリア -->
+        <div class="datetime">
+            <div id="date" class="date"></div>
+            <div id="clock" class="clock"></div>
+        </div>
+
+        <!-- 検索バー -->
+        <form class="search-box" id="searchForm" action="https://www.google.com/search" method="GET">
+            <svg class="search-icon" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+            </svg>
+            <input type="text" id="searchInput" name="q" placeholder="Google で検索..." autocomplete="off" autofocus>
+        </form>
+
+        <!-- ショートカット -->
+        <div class="shortcuts" id="shortcuts"></div>
+    </div>
+
+    <!-- 設定ボタン (右下) -->
+    <div class="settings-btn" id="openSettingsBtn" title="設定">
+        <svg viewBox="0 0 24 24">
+            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"></path>
+        </svg>
+    </div>
+
+    <!-- 追加用モーダル (ショートカット / ブックマーク) -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">追加</h3>
+            <div class="input-group">
+                <input type="text" id="siteName" placeholder="名前 (例: YouTube)" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <input type="url" id="siteUrl" placeholder="URL (例: https://youtube.com)" autocomplete="off">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancelAddBtn">キャンセル</button>
+                <button class="btn-save" id="saveAddBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定用モーダル -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <h3>設定</h3>
+            <div class="input-group">
+                <label for="searchEngineSelect">検索エンジン</label>
+                <select id="searchEngineSelect">
+                    <option value="google">Google</option>
+                    <option value="yahoo">Yahoo! JAPAN</option>
+                    <option value="bing">Bing</option>
+                    <option value="duckduckgo">DuckDuckGo</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="bgUrlInput">背景画像のURL</label>
+                <input type="url" id="bgUrlInput" placeholder="画像のURLを入力 (空欄で単色背景)" autocomplete="off">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="cancelSettingsBtn">キャンセル</button>
+                <button class="btn-save" id="saveSettingsBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 設定の管理 (検索エンジン & 背景画像)
+        // ==========================================
+        const CONFIG_KEY = 'custom_tab_config';
+        let config = JSON.parse(localStorage.getItem(CONFIG_KEY)) || {
+            searchEngine: 'google',
+            bgUrl: ''
+        };
+
+        const engines = {
+            google: { url: 'https://www.google.com/search', param: 'q', placeholder: 'Google で検索...' },
+            yahoo: { url: 'https://search.yahoo.co.jp/search', param: 'p', placeholder: 'Yahoo! JAPAN で検索...' },
+            bing: { url: 'https://www.bing.com/search', param: 'q', placeholder: 'Bing で検索...' },
+            duckduckgo: { url: 'https://duckduckgo.com/', param: 'q', placeholder: 'DuckDuckGo で検索...' }
+        };
+
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+        const bgOverlay = document.getElementById('bgOverlay');
+
+        function applyConfig() {
+            // 検索エンジンの適用
+            const engine = engines[config.searchEngine] || engines.google;
+            searchForm.action = engine.url;
+            searchInput.name = engine.param;
+            searchInput.placeholder = engine.placeholder;
+
+            // 背景画像の適用
+            if (config.bgUrl) {
+                document.body.style.backgroundImage = `url('${config.bgUrl}')`;
+                bgOverlay.style.display = 'block'; // 画像設定時は文字を見やすくするフィルターをオン
+            } else {
+                document.body.style.backgroundImage = 'none';
+                bgOverlay.style.display = 'none';
+            }
+        }
+
+        // --- 設定モーダルの処理 ---
+        const settingsModal = document.getElementById('settingsModal');
+        const searchEngineSelect = document.getElementById('searchEngineSelect');
+        const bgUrlInput = document.getElementById('bgUrlInput');
+
+        document.getElementById('openSettingsBtn').onclick = () => {
+            searchEngineSelect.value = config.searchEngine;
+            bgUrlInput.value = config.bgUrl;
+            settingsModal.style.display = 'flex';
+        };
+
+        document.getElementById('cancelSettingsBtn').onclick = () => settingsModal.style.display = 'none';
+        
+        document.getElementById('saveSettingsBtn').onclick = () => {
+            config.searchEngine = searchEngineSelect.value;
+            config.bgUrl = bgUrlInput.value.trim();
+            localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+            applyConfig();
+            settingsModal.style.display = 'none';
+        };
+
+        // 初期設定の反映
+        applyConfig();
+
+
+        // ==========================================
+        // 時計・日付の処理 (日本時間・リアルタイム)
+        // ==========================================
+        function updateClock() {
+            const now = new Date();
+            const dateOptions = { timeZone: 'Asia/Tokyo', year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' };
+            document.getElementById('date').innerText = new Intl.DateTimeFormat('ja-JP', dateOptions).format(now);
+            
+            const timeOptions = { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' };
+            const timeStr = new Intl.DateTimeFormat('ja-JP', timeOptions).format(now);
+            const[hours, minutes, seconds] = timeStr.split(':');
+            
+            if(hours && minutes && seconds) {
+                document.getElementById('clock').innerHTML = `${hours}:${minutes}<span class="seconds">${seconds}</span>`;
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+
+        // ==========================================
+        // ブックマーク & ショートカットの処理
+        // ==========================================
+        const SC_KEY = 'custom_tab_shortcuts';
+        const BM_KEY = 'custom_tab_bookmarks';
+        
+        let shortcuts = JSON.parse(localStorage.getItem(SC_KEY)) ||[
+            { name: 'Google', url: 'https://www.google.com' },
+            { name: 'YouTube', url: 'https://www.youtube.com' }
+        ];
+
+        let bookmarks = JSON.parse(localStorage.getItem(BM_KEY)) ||[
+            { name: 'Yahoo! JAPAN', url: 'https://www.yahoo.co.jp' },
+            { name: 'Amazon', url: 'https://www.amazon.co.jp' },
+            { name: 'ニュース', url: 'https://news.yahoo.co.jp' }
+        ];
+
+        let currentAddMode = 'shortcut';
+
+        function renderBookmarks() {
+            const bar = document.getElementById('bookmarkBar');
+            bar.innerHTML = '';
+            bookmarks.forEach((bm, index) => {
+                const a = document.createElement('a');
+                a.href = bm.url;
+                a.className = 'bookmark-item';
+                const domain = getDomain(bm.url);
+                a.innerHTML = `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" onerror="this.style.display='none'"> <span>${bm.name}</span>`;
+
+                const delBtn = document.createElement('span');
+                delBtn.className = 'bm-delete';
+                delBtn.innerHTML = '×';
+                delBtn.onclick = (e) => {
+                    e.preventDefault();
+                    bookmarks.splice(index, 1);
+                    localStorage.setItem(BM_KEY, JSON.stringify(bookmarks));
+                    renderBookmarks();
+                };
+                a.appendChild(delBtn);
+                bar.appendChild(a);
+            });
+
+            const addBtn = document.createElement('div');
+            addBtn.className = 'bookmark-item add-bm';
+            addBtn.innerHTML = '+ 追加';
+            addBtn.onclick = () => openAddModal('bookmark');
+            bar.appendChild(addBtn);
+        }
+
+        function renderShortcuts() {
+            const container = document.getElementById('shortcuts');
+            container.innerHTML = '';
+            shortcuts.forEach((sc, index) => {
+                const a = document.createElement('a');
+                a.href = sc.url;
+                a.className = 'shortcut';
+                
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'icon';
+                const domain = getDomain(sc.url);
+                const img = document.createElement('img');
+                img.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+                img.onerror = () => { img.style.display = 'none'; iconDiv.innerText = sc.name.charAt(0).toUpperCase(); };
+                iconDiv.appendChild(img);
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'title';
+                titleDiv.innerText = sc.name;
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'sc-delete';
+                delBtn.innerHTML = '×';
+                delBtn.onclick = (e) => {
+                    e.preventDefault();
+                    shortcuts.splice(index, 1);
+                    localStorage.setItem(SC_KEY, JSON.stringify(shortcuts));
+                    renderShortcuts();
+                };
+
+                a.appendChild(delBtn);
+                a.appendChild(iconDiv);
+                a.appendChild(titleDiv);
+                container.appendChild(a);
+            });
+
+            const addBtn = document.createElement('div');
+            addBtn.className = 'shortcut';
+            addBtn.onclick = () => openAddModal('shortcut');
+            addBtn.innerHTML = `<div class="icon"><span style="font-size: 24px;">+</span></div><div class="title">追加</div>`;
+            container.appendChild(addBtn);
+        }
+
+        function getDomain(urlStr) {
+            try { return new URL(urlStr).hostname; } catch(e) { return ''; }
+        }
+
+
+        // ==========================================
+        // 追加モーダルの処理
+        // ==========================================
+        const addModal = document.getElementById('addModal');
+        const siteNameInput = document.getElementById('siteName');
+        const siteUrlInput = document.getElementById('siteUrl');
+
+        function openAddModal(mode) {
+            currentAddMode = mode;
+            document.getElementById('modalTitle').innerText = mode === 'shortcut' ? 'ショートカットを追加' : 'ブックマークを追加';
+            siteNameInput.value = '';
+            siteUrlInput.value = '';
+            addModal.style.display = 'flex';
+            siteNameInput.focus();
+        }
+
+        document.getElementById('cancelAddBtn').onclick = () => addModal.style.display = 'none';
+
+        document.getElementById('saveAddBtn').onclick = () => {
+            const name = siteNameInput.value.trim();
+            let url = siteUrlInput.value.trim();
+            
+            if (name && url) {
+                if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+                
+                if (currentAddMode === 'shortcut') {
+                    shortcuts.push({ name, url });
+                    localStorage.setItem(SC_KEY, JSON.stringify(shortcuts));
+                    renderShortcuts();
+                } else {
+                    bookmarks.push({ name, url });
+                    localStorage.setItem(BM_KEY, JSON.stringify(bookmarks));
+                    renderBookmarks();
+                }
+                addModal.style.display = 'none';
+            } else {
+                alert('名前とURLの両方を入力してください。');
+            }
+        }
+
+        // モーダルの背景クリックで閉じる処理 (共通)
+        window.onclick = (e) => {
+            if (e.target === addModal) addModal.style.display = 'none';
+            if (e.target === settingsModal) settingsModal.style.display = 'none';
+        }
+
+        renderBookmarks();
+        renderShortcuts();
+    </script>
+</body>
+</html>
